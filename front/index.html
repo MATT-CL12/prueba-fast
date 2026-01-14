@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Control de Jornada</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+
+<body class="container mt-5">
+
+<h3>Control de Jornada Laboral</h3>
+
+<input id="code" class="form-control mb-3" placeholder="Código de usuario">
+
+<button class="btn btn-success me-2" onclick="start()">Iniciar Jornada</button>
+<button class="btn btn-danger" onclick="end()">Terminar Jornada</button>
+
+<hr>
+
+<h4>Tiempo trabajado:</h4>
+<h2 id="timer">00:00:00</h2>
+
+<script>
+let interval = null;
+let seconds = 0;
+let currentCode = null;
+
+function render() {
+    const h = String(Math.floor(seconds / 3600)).padStart(2,'0');
+    const m = String(Math.floor((seconds % 3600) / 60)).padStart(2,'0');
+    const s = String(seconds % 60).padStart(2,'0');
+    document.getElementById("timer").innerText = `${h}:${m}:${s}`;
+}
+
+function run() {
+    if (interval) clearInterval(interval);
+    interval = setInterval(() => {
+        seconds++;
+        render();
+    }, 1000);
+}
+
+async function start() {
+    const code = document.getElementById("code").value;
+    if (!code) {
+        alert("Ingrese un código");
+        return;
+    }
+
+    const r = await fetch(
+        `http://localhost:8000/start?code=${code}`,
+        { method: "POST" }
+    );
+
+    // 🔴 AQUÍ ESTABA EL ERROR PRINCIPAL
+    if (!r.ok) {
+        const err = await r.json();
+        alert(err.detail);
+        return;
+    }
+
+    const d = await r.json();
+
+    currentCode = code;
+
+    if (d.status === "already_started") {
+        alert(d.message);
+        seconds = d.seconds;
+        run();
+        return;
+    }
+
+    if (d.status === "started") {
+        alert(d.message);
+        seconds = 0;
+        run();
+        return;
+    }
+}
+
+async function end() {
+    if (!currentCode) {
+        alert("No hay jornada activa");
+        return;
+    }
+
+    const r = await fetch(
+        `http://localhost:8000/end?code=${currentCode}`,
+        { method: "POST" }
+    );
+
+    if (!r.ok) {
+        const err = await r.json();
+        alert(err.detail);
+        return;
+    }
+
+    const d = await r.json();
+
+    alert("Tiempo total trabajado: " + d.total_seconds + " segundos");
+
+    clearInterval(interval);
+    interval = null;
+    seconds = 0;
+    render();
+    currentCode = null;
+}
+</script>
+
+
+</body>
+</html>

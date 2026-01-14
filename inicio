@@ -1,0 +1,2 @@
+cd c:\Users\Usuario\Desktop\prueba-py\back
+uvicorn main:app --reload
